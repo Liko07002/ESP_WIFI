@@ -8,8 +8,9 @@ void app_main(void)
 {
     nvs_init();
 
-    wifi_sta_init();
+    //wifi_sta_init();
     //wifi_ap_init();
+    wifi_scan_init();
 
     while (1)
     {
