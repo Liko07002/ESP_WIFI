@@ -3,6 +3,8 @@
 #include "freertos/task.h"
 
 #include "my_wifi.h"
+#include "my_ap_wifi.h"
+
 
 void app_main(void)
 {
@@ -10,7 +12,9 @@ void app_main(void)
 
     //wifi_sta_init();
     //wifi_ap_init();
-    wifi_scan_init();
+    //wifi_scan_init();
+    //wifi_apsta_init();
+    ap_wifi_init();
 
     while (1)
     {

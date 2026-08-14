@@ -10,7 +10,7 @@ void nvs_init(void);
 void wifi_sta_init(void);
 void wifi_ap_init(void);
 void wifi_scan_init(void);
-
+void wifi_apsta_init(void);
 
 #endif
 

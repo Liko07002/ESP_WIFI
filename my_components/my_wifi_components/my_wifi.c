@@ -85,7 +85,7 @@ static void wifi_event_handler (void* arg, esp_event_base_t event_base, int32_t 
 {
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
     {
-        esp_wifi_connect ();// 连接 wifi
+        //esp_wifi_connect ();// 连接 wifi
         printf ("wifi 连接 \n");
 
     }
@@ -119,10 +119,12 @@ static void wifi_event_handler (void* arg, esp_event_base_t event_base, int32_t 
 
 }
 
+
 void wifi_sta_init (void)
 {
     ESP_ERROR_CHECK (esp_netif_init ());// 初始化 tcpip 栈
     ESP_ERROR_CHECK (esp_event_loop_create_default ());// 硬件创建事件循环
+
     esp_netif_create_default_wifi_sta ();// 创建默认的 wifi station 模式
 
 
@@ -152,8 +154,9 @@ void wifi_sta_init (void)
 
 void wifi_ap_init(void)
 {
-    ESP_ERROR_CHECK(esp_netif_init ());// 初始化 tcpip 栈
-    ESP_ERROR_CHECK(esp_event_loop_create_default ());// 硬件创建事件循环
+    ESP_ERROR_CHECK (esp_netif_init ());// 初始化 tcpip 栈
+    ESP_ERROR_CHECK (esp_event_loop_create_default ());// 硬件创建事件循环
+
     esp_netif_t *esp_netif_ap = esp_netif_create_default_wifi_ap ();// 创建默认的 wifi ap 模式
 
     wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT ();// 默认配置
@@ -194,15 +197,16 @@ void wifi_ap_init(void)
 
 void wifi_scan_init(void)
 {
-    ESP_ERROR_CHECK(esp_netif_init ());// 初始化 tcpip 栈
-    ESP_ERROR_CHECK(esp_event_loop_create_default ());// 硬件创建事件循环
+    ESP_ERROR_CHECK (esp_netif_init ());// 初始化 tcpip 栈
+    ESP_ERROR_CHECK (esp_event_loop_create_default ());// 硬件创建事件循环
+
     esp_netif_create_default_wifi_sta ();// 创建默认的 wifi station 模式
 
     wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT ();// 默认配置
     ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_config));// 初始化 wifi
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));// 设置 wifi 模式为 station
 
-     ESP_ERROR_CHECK (esp_wifi_start ());// 启动 wifi
+    ESP_ERROR_CHECK (esp_wifi_start ());// 启动 wifi
 
     // ========== 2. 阻塞式扫描周边WiFi ==========
     // 参数1：扫描配置NULL=默认；参数2：true=阻塞，扫描完成才往下执行
@@ -212,13 +216,81 @@ void wifi_scan_init(void)
     uint16_t ap_max_num = 12;  // 最多读取12个热点
     uint16_t ap_real_num = 0;                      // 实际扫描到的热点总数
 
-    // ========== 3. 获取扫描结果 ==========
-    // 获取本次扫描总共搜到多少热点
-    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_real_num));
-    // 读取热点信息存入ap_info数组，ap_max_num输入输出参数
-     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_max_num, ap_info));
-     // ========== 4. 循环打印串口 + LCD显示WiFi信息 ==========
-    // 循环上限：不超过数组容量、不超过实际搜到热点数量
+    //顺序：先获取热点总数，再获取热点信息数组（顺序不能反，否则内存会提前释放）
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_real_num));// 获取本次扫描总共搜到多少热点
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_max_num, ap_info));// 读取热点信息存入ap_info数组，ap_max_num输入输出参数
+    
+    for (int i = 0; i < ap_max_num && i < ap_real_num; i++)
+    {
+        // 串口打印完整热点信息
+        ESP_LOGI(TAG, "---------- 热点 %d ----------", i + 1);
+        ESP_LOGI(TAG, "WiFi名称(SSID): %s", ap_info[i].ssid);
+        ESP_LOGI(TAG, "信号强度(RSSI): %d dBm", ap_info[i].rssi);
+        print_auth_mode(ap_info[i].authmode);
+
+        // WEP老旧加密不区分单播/组播，跳过加密打印
+        if (ap_info[i].authmode != WIFI_AUTH_WEP)
+        {
+            print_cipher_type(ap_info[i].pairwise_cipher, ap_info[i].group_cipher);
+        }
+        ESP_LOGI(TAG, "信道: %d\n", ap_info[i].primary);
+    }
+}
+
+void wifi_apsta_init(void)
+{
+    ESP_ERROR_CHECK (esp_netif_init ());// 初始化 tcpip 栈
+    ESP_ERROR_CHECK (esp_event_loop_create_default ());// 硬件创建事件循环
+
+    esp_netif_create_default_wifi_sta ();// 创建默认的 wifi station 模式
+    esp_netif_t *esp_netif_ap = esp_netif_create_default_wifi_ap ();// 创建默认的 wifi ap 模式
+
+    wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT ();// 默认配置
+    ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_config));// 初始化 wifi
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));// 设置 wifi 模式为 ap station
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,ESP_EVENT_ANY_ID,&wifi_event_handler, NULL, NULL));
+
+
+        //wifi ap 的配置
+    wifi_config_t wifi_ap_config =
+    {
+        .ap =
+        {
+            .ssid = "esp_wifi",
+            .ssid_len = strlen("esp_wifi"),
+            .password = "12345678",
+            .authmode = WIFI_AUTH_WPA2_PSK,
+            .channel = 6,
+            .max_connection = 4,
+        },
+    };
+
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP,&wifi_ap_config));// 设置 wifi ap 的配置
+    
+    //如果是AP模式，则需要设置如下网络层信息
+    esp_netif_ip_info_t ipInfo;
+    IP4_ADDR(&ipInfo.ip, 192,168,100,1);    //本地的IP地址
+    IP4_ADDR(&ipInfo.gw, 192,168,100,1);    //网关IP地址
+    IP4_ADDR(&ipInfo.netmask, 255,255,255,0);   //子网掩码
+    esp_netif_dhcps_stop(esp_netif_ap);        //设置IP地址前需要停用DHCP服务
+    esp_netif_set_ip_info(esp_netif_ap, &ipInfo);    //设置IP地址
+    esp_netif_dhcps_start(esp_netif_ap);        //重新启动DHCP服务
+
+    ESP_ERROR_CHECK (esp_wifi_start ());// 启动 wifi
+
+    // ========== 2. 阻塞式扫描周边WiFi ==========
+    // 参数1：扫描配置NULL=默认；参数2：true=阻塞，扫描完成才往下执行
+    ESP_ERROR_CHECK(esp_wifi_scan_start (NULL,true));// 启动 wifi 扫描
+
+    wifi_ap_record_t ap_info[12] = {0};
+    uint16_t ap_max_num = 12;  // 最多读取12个热点
+    uint16_t ap_real_num = 0;                      // 实际扫描到的热点总数
+
+    //顺序：先获取热点总数，再获取热点信息数组（顺序不能反，否则内存会提前释放）
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_num(&ap_real_num));// 获取本次扫描总共搜到多少热点
+    ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&ap_max_num, ap_info));// 读取热点信息存入ap_info数组，ap_max_num输入输出参数
+    
     for (int i = 0; i < ap_max_num && i < ap_real_num; i++)
     {
         // 串口打印完整热点信息
