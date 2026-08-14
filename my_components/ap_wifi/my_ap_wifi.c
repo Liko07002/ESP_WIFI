@@ -128,6 +128,7 @@ static void scan_task(void* param)
     ESP_ERROR_CHECK(esp_wifi_scan_get_ap_records(&number, ap_info));
     ESP_LOGI(TAG, "Total APs scanned = %u, actual AP number ap_info holds = %u", ap_count, number);
     wifi_scan_finish_handle(number,ap_info);
+    free(ap_info);
     xSemaphoreGive(scan_sem);
     vTaskDelete(NULL);
 }
@@ -282,7 +283,7 @@ esp_err_t web_ws_stop(void)
     }
     return ESP_OK;
 }
-
+ 
 
 /** 连接wifi
  * @param ssid
