@@ -1,11 +1,11 @@
 
 set(src_dirs
             my_wifi_components
-            ap_wifi)
+            softap_wifi)
  
 set(include_dirs
             my_wifi_components
-            ap_wifi)
+            softap_wifi)
  
 set(requires
             esp_wifi

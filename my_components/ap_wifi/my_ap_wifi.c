@@ -189,100 +189,100 @@ static void ws_receive_handle(uint8_t* payload,int len)
     }
 }
 
-static void wifi_event_handler (void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
-{
-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
-    {
-        printf ("wifi 启动 \n");
-        wifi_mode_t mode;
-        esp_wifi_get_mode(&mode);
-        if(mode == WIFI_MODE_STA)
-        {
-            printf ("wifi 连接 \n");
-            esp_wifi_connect();         //启动WIFI连接
-        }
-    }
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
-    {
-        printf ("wifi 重连 \n");
-        wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *) event_data;
-        ESP_LOGE ("wifi", "Disconnect reason = % d", disconn->reason);
-        vTaskDelay (5000 /portTICK_PERIOD_MS);// 等待 5 秒
-        esp_wifi_connect ();// 连接 wifi
-    }
-    else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
-    {
-        printf ("wifi 连接成功 \n");
-    }
-    /*ap 事件*/
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
-        printf("设备接入\n");
-    } 
-    // 事件：设备断开AP热点
-    else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STADISCONNECTED) {;
-        printf("设备断开\n");
-    }
+// static void wifi_event_handler (void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+// {
+//     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START)
+//     {
+//         printf ("wifi 启动 \n");
+//         wifi_mode_t mode;
+//         esp_wifi_get_mode(&mode);
+//         if(mode == WIFI_MODE_STA)
+//         {
+//             printf ("wifi 连接 \n");
+//             esp_wifi_connect();         //启动WIFI连接
+//         }
+//     }
+//     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED)
+//     {
+//         printf ("wifi 重连 \n");
+//         wifi_event_sta_disconnected_t *disconn = (wifi_event_sta_disconnected_t *) event_data;
+//         ESP_LOGE ("wifi", "Disconnect reason = % d", disconn->reason);
+//         vTaskDelay (5000 /portTICK_PERIOD_MS);// 等待 5 秒
+//         esp_wifi_connect ();// 连接 wifi
+//     }
+//     else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP)
+//     {
+//         printf ("wifi 连接成功 \n");
+//     }
+//     /*ap 事件*/
+//     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STACONNECTED) {
+//         printf("设备接入\n");
+//     } 
+//     // 事件：设备断开AP热点
+//     else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_STADISCONNECTED) {;
+//         printf("设备断开\n");
+//     }
 
-}
-
-
-static void ap_wifi_apsta_init (void)
-{
-    ESP_ERROR_CHECK (esp_netif_init ());// 初始化 tcpip 栈
-    ESP_ERROR_CHECK (esp_event_loop_create_default ());// 硬件创建事件循环
+// }
 
 
-    esp_netif_create_default_wifi_sta ();// 创建默认的 wifi station 模式
-    esp_netif_t *esp_netif_ap = esp_netif_create_default_wifi_ap ();// 创建默认的 wifi ap 模式
+// static void ap_wifi_apsta_init (void)
+// {
+//     ESP_ERROR_CHECK (esp_netif_init ());// 初始化 tcpip 栈
+//     ESP_ERROR_CHECK (esp_event_loop_create_default ());// 硬件创建事件循环
 
-    wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT ();// 默认配置
-    ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_config));// 初始化 wifi
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));// 设置 wifi 模式为 ap station
+
+//     esp_netif_create_default_wifi_sta ();// 创建默认的 wifi station 模式
+//     esp_netif_t *esp_netif_ap = esp_netif_create_default_wifi_ap ();// 创建默认的 wifi ap 模式
+
+//     wifi_init_config_t wifi_init_config = WIFI_INIT_CONFIG_DEFAULT ();// 默认配置
+//     ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_config));// 初始化 wifi
+//     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));// 设置 wifi 模式为 ap station
     
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,ESP_EVENT_ANY_ID,&wifi_event_handler, NULL, NULL));
-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,IP_EVENT_STA_GOT_IP,&wifi_event_handler, NULL, NULL));
+//     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,ESP_EVENT_ANY_ID,&wifi_event_handler, NULL, NULL));
+//     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,IP_EVENT_STA_GOT_IP,&wifi_event_handler, NULL, NULL));
     
-    //wifi ap 的配置
-    wifi_config_t wifi_ap_config =
-    {
-        .ap =
-        {
-            .authmode = WIFI_AUTH_WPA2_PSK,
-            .channel = 6,
-            .max_connection = 4,
-        },
-    };
-    //填充ap的ssid名称
-    snprintf((char*)wifi_ap_config.ap.ssid,31,"%s",ap_ssid_name);
-    wifi_ap_config.ap.ssid_len = strlen(ap_ssid_name);
-    //填充密码
-    snprintf((char*)wifi_ap_config.ap.password,63,"%s",ap_password);
+//     //wifi ap 的配置
+//     wifi_config_t wifi_ap_config =
+//     {
+//         .ap =
+//         {
+//             .authmode = WIFI_AUTH_WPA2_PSK,
+//             .channel = 6,
+//             .max_connection = 4,
+//         },
+//     };
+//     //填充ap的ssid名称
+//     snprintf((char*)wifi_ap_config.ap.ssid,31,"%s",ap_ssid_name);
+//     wifi_ap_config.ap.ssid_len = strlen(ap_ssid_name);
+//     //填充密码
+//     snprintf((char*)wifi_ap_config.ap.password,63,"%s",ap_password);
 
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP,&wifi_ap_config));// 设置 wifi ap 的配置
+//     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP,&wifi_ap_config));// 设置 wifi ap 的配置
     
-    //如果是AP模式，则需要设置如下网络层信息
-    esp_netif_ip_info_t ipInfo;
-    IP4_ADDR(&ipInfo.ip, 192,168,100,1);    //本地的IP地址
-    IP4_ADDR(&ipInfo.gw, 192,168,100,1);    //网关IP地址
-    IP4_ADDR(&ipInfo.netmask, 255,255,255,0);   //子网掩码
-    esp_netif_dhcps_stop(esp_netif_ap);        //设置IP地址前需要停用DHCP服务
-    esp_netif_set_ip_info(esp_netif_ap, &ipInfo);    //设置IP地址
-    esp_netif_dhcps_start(esp_netif_ap);        //重新启动DHCP服务
+//     //如果是AP模式，则需要设置如下网络层信息
+//     esp_netif_ip_info_t ipInfo;
+//     IP4_ADDR(&ipInfo.ip, 192,168,100,1);    //本地的IP地址
+//     IP4_ADDR(&ipInfo.gw, 192,168,100,1);    //网关IP地址
+//     IP4_ADDR(&ipInfo.netmask, 255,255,255,0);   //子网掩码
+//     esp_netif_dhcps_stop(esp_netif_ap);        //设置IP地址前需要停用DHCP服务
+//     esp_netif_set_ip_info(esp_netif_ap, &ipInfo);    //设置IP地址
+//     esp_netif_dhcps_start(esp_netif_ap);        //重新启动DHCP服务
 
-    ESP_ERROR_CHECK (esp_wifi_start ());// 启动 wifi
-}
+//     ESP_ERROR_CHECK (esp_wifi_start ());// 启动 wifi
+// }
 
-esp_err_t web_ws_stop(void)
-{
-    ESP_LOGI(TAG,"WS stop");
-    if(http_ws_server)
-    {
-        esp_err_t ret = httpd_stop(http_ws_server);
-        http_ws_server = NULL;
-        return ret;
-    }
-    return ESP_OK;
-}
+// esp_err_t web_ws_stop(void)
+// {
+//     ESP_LOGI(TAG,"WS stop");
+//     if(http_ws_server)
+//     {
+//         esp_err_t ret = httpd_stop(http_ws_server);
+//         http_ws_server = NULL;
+//         return ret;
+//     }
+//     return ESP_OK;
+// }
  
 
 /** 连接wifi
@@ -334,93 +334,107 @@ static void ap_wifi_task(void* param)
 }
 
 
-/** 当其他设备WS访问时触发此回调函数
- * @param req http请求
- * @return ESP_OK or ESP_FAIL
-*/
-static esp_err_t handle_ws_req(httpd_req_t *req)
-{
-    if (req->method == HTTP_GET)
-    {
-        ESP_LOGI(TAG, "Handshake done, the new connection was opened");
-        //把套接字描述符保存下来，方便后续发送数据用
-        client_sockfd = httpd_req_to_sockfd(req);
-        ESP_LOGI(TAG,"Save client_fds:%d",client_sockfd);
-        return ESP_OK;
-    }
-    httpd_ws_frame_t ws_pkt;
-    uint8_t *buf = NULL;
-    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-    esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
-    if (ret != ESP_OK)
-    {
-        return ret;
-    }
-    if (ws_pkt.len)
-    {
-        buf = calloc(1, ws_pkt.len + 1);
-        if (buf == NULL)
-        {
-            ESP_LOGE(TAG, "Failed to calloc memory for buf");
-            return ESP_ERR_NO_MEM;
-        }
-        ws_pkt.payload = buf;
-        ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
-        if (ret != ESP_OK)
-        {
-            ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
-            free(buf);
-            return ret;
-        }
-        ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
-    }
-    ESP_LOGI(TAG, "frame len is %d", ws_pkt.len);
-    if (ws_pkt.type == HTTPD_WS_TYPE_TEXT)
-    {
-        ws_receive_handle(ws_pkt.payload,ws_pkt.len);
-        free(buf);
-    }
-    return ESP_OK;
-}
+// /** 当其他设备WS访问时触发此回调函数
+//  * @param req http请求
+//  * @return ESP_OK or ESP_FAIL
+// */
+// static esp_err_t handle_ws_req(httpd_req_t *req)
+// {
+//     // if (req->method == HTTP_GET)
+//     // {
+//     //     ESP_LOGI(TAG, "Handshake done, the new connection was opened");
+//     //     //把套接字描述符保存下来，方便后续发送数据用
+//     //     client_sockfd = httpd_req_to_sockfd(req);
+//     //     ESP_LOGI(TAG,"Save client_fds:%d",client_sockfd);
+//     //     return ESP_OK;
+//     // }
+//     int fd = httpd_req_to_sockfd(req);
+
+//     if (httpd_ws_get_fd_info(req->handle, fd) !=
+//         HTTPD_WS_CLIENT_WEBSOCKET) {
+//         ESP_LOGE(TAG, "fd=%d is not an active WebSocket client", fd);
+//         return ESP_FAIL;
+//     }
+
+//     // ESP-IDF 6.x 不会在握手时调用此 handler，
+//     // 因此收到数据帧时保存当前连接
+//     client_sockfd = fd;
+//     ESP_LOGI(TAG, "WebSocket frame from fd=%d", client_sockfd);
 
 
-esp_err_t get_req_handler(httpd_req_t *req)
-{
-    esp_err_t response = ESP_FAIL;
-    if(index_html)
-    {
-        response = httpd_resp_send(req, index_html, HTTPD_RESP_USE_STRLEN);
-    }
-    return response;
-}
+//     httpd_ws_frame_t ws_pkt;
+//     uint8_t *buf = NULL;
+//     memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+//     esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+//     if (ret != ESP_OK)
+//     {
+//         return ret;
+//     }
+//     if (ws_pkt.len)
+//     {
+//         buf = calloc(1, ws_pkt.len + 1);
+//         if (buf == NULL)
+//         {
+//             ESP_LOGE(TAG, "Failed to calloc memory for buf");
+//             return ESP_ERR_NO_MEM;
+//         }
+//         ws_pkt.payload = buf;
+//         ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+//         if (ret != ESP_OK)
+//         {
+//             ESP_LOGE(TAG, "httpd_ws_recv_frame failed with %d", ret);
+//             free(buf);
+//             return ret;
+//         }
+//         ESP_LOGI(TAG, "Got packet with message: %s", ws_pkt.payload);
+//     }
+//     ESP_LOGI(TAG, "frame len is %d", ws_pkt.len);
+//     if (ws_pkt.type == HTTPD_WS_TYPE_TEXT)
+//     {
+//         ws_receive_handle(ws_pkt.payload,ws_pkt.len);
+//         free(buf);
+//     }
+//     return ESP_OK;
+// }
 
 
-esp_err_t   web_ws_start(void)
-{
-    //http和websocket初始化
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    httpd_uri_t uri_get = 
-    {
-        .uri = "/",
-        .method = HTTP_GET,
-        .handler = get_req_handler,
-    };
-    httpd_uri_t ws = 
-    {
-        .uri = "/ws",
-        .method = HTTP_GET,
-        .handler = handle_ws_req,
-        .is_websocket = true
-    };
+// esp_err_t get_req_handler(httpd_req_t *req)
+// {
+//     esp_err_t response = ESP_FAIL;
+//     if(index_html)
+//     {
+//         response = httpd_resp_send(req, index_html, HTTPD_RESP_USE_STRLEN);
+//     }
+//     return response;
+// }
 
-    if (httpd_start(&http_ws_server, &config) == ESP_OK)
-    {
-        httpd_register_uri_handler(http_ws_server, &uri_get);
-        httpd_register_uri_handler(http_ws_server, &ws);
-    }
 
-    return ESP_OK;
-}
+// esp_err_t   web_ws_start(void)
+// {
+//     //http和websocket初始化
+//     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+//     httpd_uri_t uri_get = 
+//     {
+//         .uri = "/",
+//         .method = HTTP_GET,
+//         .handler = get_req_handler,
+//     };
+//     httpd_uri_t ws = 
+//     {
+//         .uri = "/ws",
+//         .method = HTTP_GET,
+//         .handler = handle_ws_req,
+//         .is_websocket = true
+//     };
+
+//     if (httpd_start(&http_ws_server, &config) == ESP_OK)
+//     {
+//         httpd_register_uri_handler(http_ws_server, &uri_get);
+//         httpd_register_uri_handler(http_ws_server, &ws);
+//     }
+
+//     return ESP_OK;
+// }
 
 void ap_wifi_init(void)
 {
