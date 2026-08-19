@@ -1,6 +1,7 @@
 #include "softap_wifi_net.h"
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -36,6 +37,8 @@ static esp_event_handler_instance_t s_ip_event_instance;
 static bool s_initialized;
 static bool s_connect_requested;
 static unsigned s_retry_count;
+static softap_wifi_connect_done_cb_t s_connect_callback;
+static void *s_connect_callback_ctx;
 
 static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
@@ -61,13 +64,23 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             }
         } else if (s_connect_requested) {
             ESP_LOGE(TAG, "STA 重试 %u 次后仍未连接，已停止重试", s_retry_count);
+            s_connect_requested = false;
+            if (s_connect_callback != NULL) {
+                s_connect_callback(false, NULL, event->reason, s_connect_callback_ctx);
+            }
         }
         return;
     }
     if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         const ip_event_got_ip_t *event = event_data;
         s_retry_count = 0;
+        s_connect_requested = false;
         ESP_LOGI(TAG, "STA 连接成功，IP=" IPSTR, IP2STR(&event->ip_info.ip));
+        if (s_connect_callback != NULL) {
+            char ip[16];
+            snprintf(ip, sizeof(ip), IPSTR, IP2STR(&event->ip_info.ip));
+            s_connect_callback(true, ip, 0, s_connect_callback_ctx);
+        }
     }
 }
 
@@ -169,10 +182,17 @@ esp_err_t softap_wifi_net_init(void)
     return ESP_OK;
 }
 
-esp_err_t softap_wifi_net_connect(const char *ssid, const char *password)
+esp_err_t softap_wifi_net_connect(
+    const char *ssid,
+    const char *password,
+    softap_wifi_connect_done_cb_t callback,
+    void *ctx)
 {
-    if (!s_initialized || ssid == NULL || password == NULL) {
+    if (!s_initialized) {
         return ESP_ERR_INVALID_STATE;
+    }
+    if (ssid == NULL || password == NULL || callback == NULL) {
+        return ESP_ERR_INVALID_ARG;
     }
 
     const size_t ssid_len = strlen(ssid);
@@ -189,16 +209,22 @@ esp_err_t softap_wifi_net_connect(const char *ssid, const char *password)
 
     s_connect_requested = true;
     s_retry_count = 0;
+    s_connect_callback = callback;
+    s_connect_callback_ctx = ctx;
 
-    esp_err_t err = esp_wifi_set_mode(WIFI_MODE_STA);
-    if (err != ESP_OK) {
-        return err;
-    }
-    err = esp_wifi_set_config(WIFI_IF_STA, &sta_config);
+    esp_err_t err = esp_wifi_set_config(WIFI_IF_STA, &sta_config);
     if (err != ESP_OK) {
         return err;
     }
     return esp_wifi_connect();
+}
+
+esp_err_t softap_wifi_net_finish_provisioning(void)
+{
+    if (!s_initialized) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    return esp_wifi_set_mode(WIFI_MODE_STA);
 }
 
 static void scan_task(void *arg)
@@ -252,6 +278,8 @@ esp_err_t softap_wifi_net_deinit(void)
     }
 
     s_connect_requested = false;
+    s_connect_callback = NULL;
+    s_connect_callback_ctx = NULL;
     if (s_scan_task != NULL) {
         vTaskDelete(s_scan_task);
         s_scan_task = NULL;

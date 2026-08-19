@@ -14,6 +14,7 @@
 #define TAG "softap_wifi_http"
 
 #define HTML_PATH              "/spiffs/softap_wifi.html"
+#define PICO_CSS_PATH          "/spiffs/pico.min.css"
 #define HTML_PARTITION_LABEL   "html"
 #define WS_MAX_MESSAGE_SIZE    512U
 
@@ -91,16 +92,29 @@ static esp_err_t process_ws_message(const uint8_t *payload, size_t len)
     }
 
     esp_err_t result = ESP_ERR_INVALID_ARG;
-    const cJSON *scan = cJSON_GetObjectItemCaseSensitive(root, "scan");
+    const cJSON *type = cJSON_GetObjectItemCaseSensitive(root, "type");
     const cJSON *ssid = cJSON_GetObjectItemCaseSensitive(root, "ssid");
     const cJSON *password = cJSON_GetObjectItemCaseSensitive(root, "password");
 
-    if (cJSON_IsString(scan) && scan->valuestring != NULL &&
-        strcmp(scan->valuestring, "start") == 0) {
+    if (!cJSON_IsString(type) || type->valuestring == NULL) {
+        cJSON_Delete(root);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    if (strcmp(type->valuestring, "scan_start") == 0) {
         result = (s_callbacks.on_scan != NULL)
             ? s_callbacks.on_scan(s_callbacks.ctx)
             : ESP_ERR_NOT_SUPPORTED;
-    } else if (cJSON_IsString(ssid) && ssid->valuestring != NULL &&
+    } else if (strcmp(type->valuestring, "get_state") == 0) {
+        result = (s_callbacks.on_state != NULL)
+            ? s_callbacks.on_state(s_callbacks.ctx)
+            : ESP_ERR_NOT_SUPPORTED;
+    } else if (strcmp(type->valuestring, "close_provisioning") == 0) {
+        result = (s_callbacks.on_close != NULL)
+            ? s_callbacks.on_close(s_callbacks.ctx)
+            : ESP_ERR_NOT_SUPPORTED;
+    } else if (strcmp(type->valuestring, "configure") == 0 &&
+               cJSON_IsString(ssid) && ssid->valuestring != NULL &&
                cJSON_IsString(password) && password->valuestring != NULL) {
         result = (s_callbacks.on_credentials != NULL)
             ? s_callbacks.on_credentials(
@@ -112,6 +126,28 @@ static esp_err_t process_ws_message(const uint8_t *payload, size_t len)
 
     cJSON_Delete(root);
     return result;
+}
+
+static void send_request_error(httpd_req_t *req, esp_err_t error)
+{
+    char json[192];
+    int len = snprintf(
+        json,
+        sizeof(json),
+        "{\"type\":\"provision_status\",\"state\":\"request_error\","
+        "\"message\":\"请求无效或设备正忙，请稍后重试\",\"reason\":%d}",
+        error);
+    if (len <= 0 || (size_t)len >= sizeof(json)) {
+        return;
+    }
+
+    httpd_ws_frame_t frame = {
+        .final = true,
+        .type = HTTPD_WS_TYPE_TEXT,
+        .payload = (uint8_t *)json,
+        .len = (size_t)len,
+    };
+    (void)httpd_ws_send_frame(req, &frame);
 }
 
 static esp_err_t ws_handler(httpd_req_t *req)
@@ -148,6 +184,7 @@ static esp_err_t ws_handler(httpd_req_t *req)
 
     if (err != ESP_OK) {
         ESP_LOGW(TAG, "WebSocket 请求已拒绝：%s", esp_err_to_name(err));
+        send_request_error(req, err);
     }
     return ESP_OK;
 }
@@ -159,6 +196,39 @@ static esp_err_t root_handler(httpd_req_t *req)
     }
     httpd_resp_set_type(req, "text/html; charset=utf-8");
     return httpd_resp_send(req, s_index_html, HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t send_file(
+    httpd_req_t *req,
+    const char *path,
+    const char *content_type)
+{
+    FILE *file = fopen(path, "rb");
+    if (file == NULL) {
+        return httpd_resp_send_err(req, HTTPD_404_NOT_FOUND, "文件不存在");
+    }
+
+    httpd_resp_set_type(req, content_type);
+    char buffer[1024];
+    esp_err_t result = ESP_OK;
+    size_t read_len;
+    while ((read_len = fread(buffer, 1U, sizeof(buffer), file)) > 0U) {
+        result = httpd_resp_send_chunk(req, buffer, read_len);
+        if (result != ESP_OK) {
+            break;
+        }
+    }
+    fclose(file);
+
+    if (result == ESP_OK) {
+        result = httpd_resp_send_chunk(req, NULL, 0);
+    }
+    return result;
+}
+
+static esp_err_t pico_css_handler(httpd_req_t *req)
+{
+    return send_file(req, PICO_CSS_PATH, "text/css; charset=utf-8");
 }
 
 static esp_err_t favicon_handler(httpd_req_t *req)
@@ -200,6 +270,11 @@ esp_err_t softap_wifi_http_start(const softap_wifi_http_callbacks_t *callbacks)
         .method = HTTP_GET,
         .handler = favicon_handler,
     };
+    const httpd_uri_t pico_css = {
+        .uri = "/pico.min.css",
+        .method = HTTP_GET,
+        .handler = pico_css_handler,
+    };
     const httpd_uri_t ws = {
         .uri = "/ws",
         .method = HTTP_GET,
@@ -209,6 +284,7 @@ esp_err_t softap_wifi_http_start(const softap_wifi_http_callbacks_t *callbacks)
 
     if ((err = httpd_register_uri_handler(s_server, &root)) != ESP_OK ||
         (err = httpd_register_uri_handler(s_server, &favicon)) != ESP_OK ||
+        (err = httpd_register_uri_handler(s_server, &pico_css)) != ESP_OK ||
         (err = httpd_register_uri_handler(s_server, &ws)) != ESP_OK) {
         (void)softap_wifi_http_stop();
         return err;
@@ -227,7 +303,11 @@ esp_err_t softap_wifi_http_send_scan_result(
     }
 
     cJSON *root = cJSON_CreateObject();
-    cJSON *list = (root != NULL) ? cJSON_AddArrayToObject(root, "wifi_list") : NULL;
+    cJSON *list = NULL;
+    if (root != NULL) {
+        cJSON_AddStringToObject(root, "type", "scan_result");
+        list = cJSON_AddArrayToObject(root, "networks");
+    }
     if (root == NULL || list == NULL) {
         cJSON_Delete(root);
         return ESP_ERR_NO_MEM;
@@ -252,6 +332,43 @@ esp_err_t softap_wifi_http_send_scan_result(
         return ESP_ERR_NO_MEM;
     }
 
+    esp_err_t err = ws_send_text(json, strlen(json));
+    cJSON_free(json);
+    return err;
+}
+
+esp_err_t softap_wifi_http_send_status(
+    const char *state,
+    const char *message,
+    const char *ip,
+    int reason)
+{
+    if (state == NULL || message == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    if (root == NULL ||
+        cJSON_AddStringToObject(root, "type", "provision_status") == NULL ||
+        cJSON_AddStringToObject(root, "state", state) == NULL ||
+        cJSON_AddStringToObject(root, "message", message) == NULL) {
+        cJSON_Delete(root);
+        return ESP_ERR_NO_MEM;
+    }
+    if (ip != NULL && cJSON_AddStringToObject(root, "ip", ip) == NULL) {
+        cJSON_Delete(root);
+        return ESP_ERR_NO_MEM;
+    }
+    if (reason != 0 && cJSON_AddNumberToObject(root, "reason", reason) == NULL) {
+        cJSON_Delete(root);
+        return ESP_ERR_NO_MEM;
+    }
+
+    char *json = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (json == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
     esp_err_t err = ws_send_text(json, strlen(json));
     cJSON_free(json);
     return err;
