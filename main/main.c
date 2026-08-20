@@ -6,6 +6,9 @@
 //#include "my_ap_wifi.h"
 #include "softap_wifi_cfg.h"
 #include "onenet_mqtt_net.h"
+#include "ws2812.h"
+#include "led_strip.h"
+
 
 // static EventGroupHandle_t wifi_net_event;
 // #define EVENT_CONNECT_SUCCESS  BIT0
@@ -33,7 +36,9 @@ void app_main(void)
 {
     static int count = 0;
     softap_wifi_cfg_start();
-    //xTaskCreate(wifi_net_task,"wifi_net_task",2048,NULL,5,NULL);
+    // //xTaskCreate(wifi_net_task,"wifi_net_task",2048,NULL,5,NULL);
+    ws2812_start();
+
     while(1)
     {
         if(softap_wifi_cfg_get_sta_ip() == ESP_OK && count == 0)
@@ -45,4 +50,5 @@ void app_main(void)
         printf("app_main\n");
         vTaskDelay (5000 /portTICK_PERIOD_MS);// 等待 1 秒
     }
+
 }

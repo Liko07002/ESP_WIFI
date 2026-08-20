@@ -2,12 +2,16 @@
 set(src_dirs
             my_wifi_components
             softap_wifi
-            onenet)
+            onenet
+            led_ws2812
+            )
  
 set(include_dirs
             my_wifi_components
             softap_wifi
-            onenet)
+            onenet
+            led_ws2812
+            )
  
 set(requires
             esp_wifi
@@ -16,6 +20,7 @@ set(requires
             esp_http_server
             mbedtls
             mqtt
+            led_strip
             )
  
 idf_component_register(SRC_DIRS ${src_dirs} INCLUDE_DIRS ${include_dirs} REQUIRES ${requires})

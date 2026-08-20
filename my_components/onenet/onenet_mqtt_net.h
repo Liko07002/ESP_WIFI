@@ -10,6 +10,9 @@
 
 //设备名称
 #define ONENET_DEVICE_NAME  "ESP32_S3"
+
+//token有效时间（2030年12月30日）
+#define TM_EXPIRE_TIME 1924833600
 /**
  * 启动onenet连接
  * @return 错误码
