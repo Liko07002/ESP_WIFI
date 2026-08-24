@@ -19,4 +19,11 @@
  */
 esp_err_t onenet_start(void);
 
+/**
+ * 物模型数据初始化
+ * @param 无
+ * @return 无
+ */
+void onenet_dm_init(void);
+
 #endif
