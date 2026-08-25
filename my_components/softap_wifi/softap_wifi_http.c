@@ -14,7 +14,7 @@
 #define TAG "softap_wifi_http"
 
 #define HTML_PATH              "/spiffs/softap_wifi.html"
-#define PICO_CSS_PATH          "/spiffs/pico.min.css"
+#define SOFTAP_CSS_PATH        "/spiffs/softap_wifi.css"
 #define HTML_PARTITION_LABEL   "html"
 #define WS_MAX_MESSAGE_SIZE    512U
 
@@ -226,9 +226,9 @@ static esp_err_t send_file(
     return result;
 }
 
-static esp_err_t pico_css_handler(httpd_req_t *req)
+static esp_err_t softap_css_handler(httpd_req_t *req)
 {
-    return send_file(req, PICO_CSS_PATH, "text/css; charset=utf-8");
+    return send_file(req, SOFTAP_CSS_PATH, "text/css; charset=utf-8");
 }
 
 static esp_err_t favicon_handler(httpd_req_t *req)
@@ -270,10 +270,10 @@ esp_err_t softap_wifi_http_start(const softap_wifi_http_callbacks_t *callbacks)
         .method = HTTP_GET,
         .handler = favicon_handler,
     };
-    const httpd_uri_t pico_css = {
-        .uri = "/pico.min.css",
+    const httpd_uri_t softap_css = {
+        .uri = "/softap_wifi.css",
         .method = HTTP_GET,
-        .handler = pico_css_handler,
+        .handler = softap_css_handler,
     };
     const httpd_uri_t ws = {
         .uri = "/ws",
@@ -284,7 +284,7 @@ esp_err_t softap_wifi_http_start(const softap_wifi_http_callbacks_t *callbacks)
 
     if ((err = httpd_register_uri_handler(s_server, &root)) != ESP_OK ||
         (err = httpd_register_uri_handler(s_server, &favicon)) != ESP_OK ||
-        (err = httpd_register_uri_handler(s_server, &pico_css)) != ESP_OK ||
+        (err = httpd_register_uri_handler(s_server, &softap_css)) != ESP_OK ||
         (err = httpd_register_uri_handler(s_server, &ws)) != ESP_OK) {
         (void)softap_wifi_http_stop();
         return err;
