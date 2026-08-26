@@ -6,14 +6,30 @@
   <meta name="color-scheme" content="light">
   <meta name="theme-color" content="#f5f8f9">
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/softap_wifi.css">
+  <link rel="stylesheet" href="./softap_wifi.css">
   <title>ESP32 设备配网</title>
 </head>
 <body>
 <main class="shell">
   <header class="device-header">
     <div class="device-status">
-      <div class="device-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 7.5a12.5 12.5 0 0 1 17 0M5.8 11a9.1 9.1 0 0 1 12.4 0M8.5 14.5a5.2 5.2 0 0 1 7 0"/><circle cx="12" cy="18.25" r="1.25"/></svg></div>
+      <div class="device-mark" aria-hidden="true"><svg class="wifi-glyph" viewBox="0 0 24 24"><path d="
+            M6.1 12.5 a9.1 9.1 0 0 1 11.8 0
+            M8.4 15.5 a5.2 5.2 0 0 1 7.2 0
+            "
+            transform="translate(-0.75 -6.8)"
+        />
+        <path class="wifi-tip" d="
+                M10.15 18.7
+                Q12 17.3 13.85 18.7
+                Q14.2 18.9 13.95 19.25
+                L12.35 21.2
+                Q12 21.7 11.65 21.2
+                L10.05 19.25
+                Q9.8 18.9 10.15 18.7
+                Z
+          "transform="translate(-0.75 -8.3)"/>
+        </svg></div>
       <div class="device-copy"><h1>ESP32 设备配网</h1><p>连接设备到家庭 Wi-Fi</p></div>
       <div id="connectionBadge" class="connection-badge is-waiting" role="status" aria-live="polite"><span class="connection-dot" aria-hidden="true"></span><span id="connectionText">正在连接设备</span></div>
     </div>
@@ -30,7 +46,7 @@
         <div><h2>选择 Wi-Fi 网络</h2><p>请选择设备要连接的 2.4 GHz 网络</p></div>
         <button id="scanButton" class="text-button" type="button" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/></svg><span>等待设备</span></button>
       </div>
-      <div id="scanNotice" class="scan-notice" role="status" aria-live="polite"><span class="scan-ripple" aria-hidden="true"><i></i><i></i><i></i></span><span class="scan-copy">连接设备后即可搜索附近网络</span></div>
+      <div id="scanNotice" class="scan-notice" role="status" aria-live="polite"><span class="scan-ripple" aria-hidden="true"><svg class="wifi-glyph" viewBox="0 0 24 24"><path class="scan-wave scan-wave-outer" d="M6.1 12.5a9.1 9.1 0 0 1 11.8 0" transform="translate(-0.75 -6.8)"/><path class="scan-wave scan-wave-inner" d="M8.4 15.5a5.2 5.2 0 0 1 7.2 0" transform="translate(-0.75 -6.8)"/><path class="wifi-tip" d="M10.15 18.7Q12 17.3 13.85 18.7Q14.2 18.9 13.95 19.25L12.35 21.2Q12 21.7 11.65 21.2L10.05 19.25Q9.8 18.9 10.15 18.7Z" transform="translate(-0.75 -8.3)"/></svg></span><span class="scan-copy">连接设备后即可搜索附近网络</span></div>
       <ul id="networkList" class="network-list" hidden></ul>
       <button id="manualEntryButton" class="manual-entry" type="button" aria-expanded="false" aria-controls="credentialsPanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.7 5.3 4 4M4 20l4.2-1 10.5-10.5a2.8 2.8 0 0 0-4-4L4.2 15 4 20Z"/></svg><span>手动输入 Wi-Fi 名称</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>
       <div id="credentialsPanel" class="credentials" hidden>
@@ -43,7 +59,20 @@
     </section>
 
     <section id="connectingPanel" class="panel state-panel" hidden>
-      <div class="state-visual connecting-visual" aria-hidden="true"><span></span><span></span><span></span><svg viewBox="0 0 24 24"><path d="M5 10a10 10 0 0 1 14 0M8 14a6 6 0 0 1 8 0M11 18h2"/></svg></div>
+      <div class="state-visual connecting-visual" aria-hidden="true"><span></span><span></span><span></span><svg class="wifi-glyph" viewBox="0 0 24 24">
+        <path class="connecting-wave connecting-wave-outer"
+          d="M6.1 12.5a9.1 9.1 0 0 1 11.8 0"
+          transform="translate(0.15 -4.5)"/>
+        <path class="connecting-wave connecting-wave-inner"
+          d="M8.4 15.5a5.2 5.2 0 0 1 7.2 0"
+          transform="translate(0.15 -4.5)"/>
+        <path class="wifi-tip" d="
+            M10.15 18.7Q12 17.3 13.85 18.7
+            Q14.2 18.9 13.95 19.25L12.35 21.2
+            Q12 21.7 11.65 21.2L10.05 19.25
+            Q9.8 18.9 10.15 18.7Z" 
+            transform="translate(0.15 -6)"
+        /></svg></div>
       <h2>正在连接路由器</h2><p id="connectingMessage" class="state-message" role="status" aria-live="polite">通常需要 5–20 秒，请保持此页面打开</p><div class="waiting-line" aria-hidden="true"><i></i></div><p class="state-detail">ESP32 热点暂时仍会保持连接，完成后会在这里通知你。</p>
     </section>
     <section id="successPanel" class="panel state-panel" hidden>
@@ -61,7 +90,6 @@
   </article>
   <footer><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3Z"/></svg>配网过程中请保持设备通电</footer>
 </main>
-
 <script>
 (() => {
   'use strict';
@@ -95,7 +123,7 @@
     });
     socket.addEventListener('close', () => {
       clearTimeout(stateTimer); clearTimeout(scanTimer);
-      if (allowReconnect) { setConnection('offline','连接已断开，正在重连'); setScanNotice('与设备的连接暂时中断，恢复后可继续操作。', false); reconnectTimer = setTimeout(connectWebSocket, 2000); }
+      if (allowReconnect) { setConnection('offline','连接断开，开始重连'); setScanNotice('与设备的连接暂时中断，恢复后可继续操作。', false); reconnectTimer = setTimeout(connectWebSocket, 2000); }
       else setConnection('closed','配网连接已关闭');
     });
     socket.addEventListener('error', () => { if (allowReconnect) setConnection('offline','设备连接异常'); });
@@ -131,8 +159,17 @@
     paths.forEach(d => { const path = document.createElementNS(svgNs,'path'); path.setAttribute('d',d); svg.appendChild(path); }); return svg;
   }
   function createSignalIcon(rssi) {
-    const icon = createSvg('signal-icon',['M4.5 10a11 11 0 0 1 15 0','M7.5 13.5a7 7 0 0 1 9 0','M10.5 17a2.5 2.5 0 0 1 3 0','M12 20h.01']);
-    const strength = rssi >= -55 ? 3 : rssi >= -72 ? 2 : 1; Array.from(icon.children).forEach((path,index) => path.classList.toggle('muted', index < 3 - strength)); return icon;
+    const icon = document.createElementNS(svgNs,'svg');
+    icon.setAttribute('viewBox','0 0 24 24'); icon.setAttribute('aria-hidden','true'); icon.setAttribute('class','signal-icon wifi-glyph');
+    const waves = ['M6.1 12.5a9.1 9.1 0 0 1 11.8 0','M8.4 15.5a5.2 5.2 0 0 1 7.2 0'].map(d => {
+      const path = document.createElementNS(svgNs,'path'); path.setAttribute('d',d); 
+      path.setAttribute('transform','translate(-4.5 -2.8)');
+      icon.appendChild(path); return path;
+    });
+    const tip = document.createElementNS(svgNs,'path'); tip.setAttribute('class','wifi-tip'); tip.setAttribute('d','M10.15 18.7Q12 17.3 13.85 18.7Q14.2 18.9 13.95 19.25L12.35 21.2Q12 21.7 11.65 21.2L10.05 19.25Q9.8 18.9 10.15 18.7Z'); 
+    tip.setAttribute('transform','translate(-4.5 -4.3)'); 
+    icon.appendChild(tip);
+    const strength = rssi >= -55 ? 2 : rssi >= -72 ? 1 : 0; waves.forEach((path,index) => path.classList.toggle('muted', index < 2 - strength)); return icon;
   }
   function renderNetworks(networks) {
     const list = $('networkList'); list.replaceChildren(); selectedButton = null; const unique = new Map();
@@ -174,6 +211,53 @@
   $('retryButton').addEventListener('click',()=>{ setPanel('setupPanel',1); showCredentials(); $('password').focus(); });
   $('rescanButton').addEventListener('click',()=>{ setPanel('setupPanel',1); startScan(); });
   $('closeButton').addEventListener('click',()=>{ $('closeButton').disabled=true; $('closeButton').setAttribute('aria-busy','true'); if (send({type:'close_provisioning'})) setConnection('waiting','正在等待关闭确认'); else { $('closeButton').disabled=false; $('closeButton').removeAttribute('aria-busy'); } });
+
+  // /* ==================== 临时网页功能测试代码：从这里开始 ====================
+  //    使用说明：
+  //    1. 此代码会代替真实 WebSocket，直接在浏览器中生成测试 Wi-Fi 列表。
+  //    2. 输入任意 8～63 位密码，会模拟连接成功。
+  //    3. 输入 testfail，会模拟连接失败，便于测试失败、重试和重新扫描按钮。
+  //    4. 测试完成后，只删除本注释起点至下方“临时网页功能测试代码：到这里结束”之间的全部内容。
+  //       删除后保留下方的 connectWebSocket();，网页就会恢复连接真实 ESP32。
+  // */
+  // connectWebSocket = function temporaryBrowserTestMode() {
+  //   allowReconnect = false;
+  //   setConnection('online','网页测试模式');
+
+  //   const testNetworks = [
+  //     {ssid:'客厅 Wi-Fi',rssi:-42,encrypted:true},
+  //     {ssid:'ESP32_Test_5G',rssi:-64,encrypted:true},
+  //     {ssid:'卧室网络',rssi:-82,encrypted:true},
+  //     {ssid:'开放网络（不可选）',rssi:-58,encrypted:false}
+  //   ];
+
+  //   socket = {
+  //     readyState: WebSocket.OPEN,
+  //     send(rawMessage) {
+  //       const message = JSON.parse(rawMessage);
+  //       if (message.type === 'get_state') {
+  //         setTimeout(() => handleMessage({type:'provision_status',state:'ready'}),150);
+  //       } else if (message.type === 'scan_start') {
+  //         setTimeout(() => handleMessage({type:'scan_result',networks:testNetworks}),400);
+  //       } else if (message.type === 'configure') {
+  //         setTimeout(() => handleMessage({type:'provision_status',state:'connecting',message:`正在测试连接 ${message.ssid}…`}),300);
+  //         setTimeout(() => {
+  //           if (message.password === 'testfail') {
+  //             handleMessage({type:'provision_status',state:'failed',message:'这是临时测试产生的连接失败页面。',reason:'TEST_AUTH_FAILED'});
+  //           } else {
+  //             handleMessage({type:'provision_status',state:'connected',ip:'192.168.1.123'});
+  //           }
+  //         },10000);
+  //       } else if (message.type === 'close_provisioning') {
+  //         setTimeout(() => handleMessage({type:'provision_status',state:'closing'}),500);
+  //       }
+  //     }
+  //   };
+
+  //   send({type:'get_state'},false);
+  // };
+  // /* ==================== 临时网页功能测试代码：到这里结束 ==================== */
+
   connectWebSocket();
 })();
 </script>
