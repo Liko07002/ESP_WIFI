@@ -47,7 +47,7 @@ void app_main(void)
             onenet_start();
             count = 1;
         }
-        printf("app_main\n");
+        printf("app_main_3\n");
         vTaskDelay (5000 /portTICK_PERIOD_MS);// 等待 1 秒
     }
 

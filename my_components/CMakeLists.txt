@@ -21,6 +21,7 @@ set(requires
             mbedtls
             mqtt
             led_strip
+            esp_https_ota app_update
             )
  
 idf_component_register(SRC_DIRS ${src_dirs} INCLUDE_DIRS ${include_dirs} REQUIRES ${requires})
