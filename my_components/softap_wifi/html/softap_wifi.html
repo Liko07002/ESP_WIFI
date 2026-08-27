@@ -51,7 +51,7 @@
       <button id="manualEntryButton" class="manual-entry" type="button" aria-expanded="false" aria-controls="credentialsPanel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.7 5.3 4 4M4 20l4.2-1 10.5-10.5a2.8 2.8 0 0 0-4-4L4.2 15 4 20Z"/></svg><span>手动输入 Wi-Fi 名称</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg></button>
       <div id="credentialsPanel" class="credentials" hidden>
         <div class="field-group"><label for="ssid">Wi-Fi 名称（SSID）</label><input id="ssid" name="ssid" type="text" maxlength="32" placeholder="请输入网络名称" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false"></div>
-        <div class="field-group"><label for="password">Wi-Fi 密码</label><div class="password-field"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input id="password" name="password" type="password" minlength="8" maxlength="63" placeholder="请输入 8–63 位密码" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false"><button id="passwordToggle" class="password-toggle" type="button" aria-label="显示密码" aria-pressed="false"><svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg><svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 6.2A10 10 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.7M6.2 6.2C3.8 7.8 2.5 12 2.5 12s3.5 6 9.5 6a9 9 0 0 0 3-.5"/></svg></button></div><p class="field-hint">密码区分大小写，输入时请保持页面打开</p></div>
+        <div class="field-group"><label for="password">Wi-Fi 密码</label><div class="password-field"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><input id="password" name="password" type="password" maxlength="63" placeholder="开放网络请留空，否则输入 8–63 位密码" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false"><button id="passwordToggle" class="password-toggle" type="button" aria-label="显示密码" aria-pressed="false"><svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg><svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 6.2A10 10 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.7M6.2 6.2C3.8 7.8 2.5 12 2.5 12s3.5 6 9.5 6a9 9 0 0 0 3-.5"/></svg></button></div><p class="field-hint">开放网络无需密码；加密网络的密码区分大小写</p></div>
         <div id="formError" class="form-error" role="alert" hidden></div>
         <button id="connectButton" class="primary-button" type="button">连接设备</button>
         <p class="trust-note"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 5 6v5c0 4.5 2.8 8 7 10 4.2-2 7-5.5 7-10V6l-7-3Z"/><path d="m9.5 12 1.7 1.7 3.5-4"/></svg>配网信息仅发送到当前 ESP32 设备</p>
@@ -180,16 +180,15 @@
     sorted.forEach(network => {
       const item = document.createElement('li');
       const button = document.createElement('button'); button.type='button'; button.className='network-item'; button.setAttribute('aria-pressed','false');
-      if (!network.encrypted) { button.disabled=true; button.setAttribute('aria-label',`${network.ssid || '隐藏网络'}，开放网络，当前设备不支持`); }
       const check=document.createElement('span'); check.className='selection-check'; check.setAttribute('aria-hidden','true');
-      const copy=document.createElement('span'); copy.className='network-copy'; const name=document.createElement('strong'); name.textContent=network.ssid || '隐藏网络'; const meta=document.createElement('small'); meta.textContent=network.encrypted ? `${signalText(network.rssi)} · 已加密 · ${network.rssi} dBm` : `开放网络 · 当前不可用 · ${network.rssi} dBm`; copy.append(name,meta);
-      button.append(check,createSignalIcon(network.rssi),copy,createSvg('row-chevron',['m9 6 6 6-6 6'])); if (network.encrypted) button.addEventListener('click',()=>selectNetwork(button,network.ssid)); item.appendChild(button); list.appendChild(item);
+      const copy=document.createElement('span'); copy.className='network-copy'; const name=document.createElement('strong'); name.textContent=network.ssid || '隐藏网络'; const meta=document.createElement('small'); meta.textContent=network.encrypted ? `${signalText(network.rssi)} · 已加密 · ${network.rssi} dBm` : `开放网络 · 无需密码 · ${network.rssi} dBm`; copy.append(name,meta);
+      button.append(check,createSignalIcon(network.rssi),copy,createSvg('row-chevron',['m9 6 6 6-6 6'])); button.addEventListener('click',()=>selectNetwork(button,network.ssid,network.encrypted)); item.appendChild(button); list.appendChild(item);
     }); list.hidden=false;
   }
   function signalText(rssi) { return rssi >= -55 ? '信号强' : rssi >= -72 ? '信号良好' : '信号较弱'; }
-  function selectNetwork(button,ssid) {
+  function selectNetwork(button,ssid,encrypted) {
     if (selectedButton) { selectedButton.classList.remove('selected'); selectedButton.setAttribute('aria-pressed','false'); }
-    selectedButton=button; button.classList.add('selected'); button.setAttribute('aria-pressed','true'); $('ssid').value=ssid || ''; showCredentials(); hideFormError(); requestAnimationFrame(()=>$('password').focus({preventScroll:true}));
+    selectedButton=button; button.classList.add('selected'); button.setAttribute('aria-pressed','true'); $('ssid').value=ssid || ''; $('password').value=''; showCredentials(); hideFormError(); requestAnimationFrame(()=>(encrypted ? $('password') : $('connectButton')).focus({preventScroll:true}));
   }
   function showCredentials() { $('credentialsPanel').hidden=false; $('manualEntryButton').setAttribute('aria-expanded','true'); $('credentialsPanel').classList.remove('reveal'); requestAnimationFrame(()=>$('credentialsPanel').classList.add('reveal')); }
   function toggleManualEntry() { if ($('credentialsPanel').hidden) { showCredentials(); requestAnimationFrame(()=>$('ssid').focus()); } else { $('credentialsPanel').hidden=true; $('manualEntryButton').setAttribute('aria-expanded','false'); } }
@@ -202,7 +201,7 @@
   function submitCredentials() {
     if (isSubmitting) return; hideFormError(); const ssid=$('ssid').value.trim(), password=$('password').value;
     if (!ssid) { showFormError('请选择网络，或输入 Wi-Fi 名称。'); $('ssid').focus(); return; }
-    if (password.length < 8 || password.length > 63) { showFormError('请输入 8–63 位 Wi-Fi 密码。'); $('password').focus(); return; }
+    if ((password.length > 0 && password.length < 8) || password.length > 63) { showFormError('开放网络请留空；加密网络请输入 8–63 位密码。'); $('password').focus(); return; }
     if (send({type:'configure',ssid,password})) { isSubmitting=true; $('connectButton').disabled=true; setPanel('connectingPanel',2); }
   }
   $('scanButton').addEventListener('click',startScan); $('manualEntryButton').addEventListener('click',toggleManualEntry); $('connectButton').addEventListener('click',submitCredentials);

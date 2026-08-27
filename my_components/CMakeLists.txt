@@ -15,6 +15,7 @@ set(include_dirs
  
 set(requires
             esp_wifi
+            lwip
             nvs_flash
             spiffs
             esp_http_server

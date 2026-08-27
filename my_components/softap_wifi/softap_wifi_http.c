@@ -11,12 +11,14 @@
 #include "esp_log.h"
 #include "esp_spiffs.h"
 
+#include "softap_wifi_config.h"
+
 #define TAG "softap_wifi_http"
 
 #define HTML_PATH              "/spiffs/softap_wifi.html"
 #define SOFTAP_CSS_PATH        "/spiffs/softap_wifi.css"
 #define HTML_PARTITION_LABEL   "html"
-#define WS_MAX_MESSAGE_SIZE    512U
+#define PORTAL_URL_SIZE        40U
 
 static httpd_handle_t s_server;
 static int s_client_fd = -1;
@@ -24,23 +26,80 @@ static char *s_index_html;
 static bool s_spiffs_mounted;
 static softap_wifi_http_callbacks_t s_callbacks;
 
+typedef struct {
+    httpd_handle_t server;
+    int client_fd;
+    char *data;
+    size_t length;
+} ws_async_message_t;
+
+static void ws_send_work(void *arg)
+{
+    ws_async_message_t *message = arg;
+    httpd_ws_client_info_t info = httpd_ws_get_fd_info(
+        message->server, message->client_fd);
+    ESP_LOGI(TAG, "准备发送网页状态：连接=%d，类型=%d",
+             message->client_fd, (int)info);
+    if (message->server == s_server && info == HTTPD_WS_CLIENT_WEBSOCKET) {
+        httpd_ws_frame_t frame = {
+            .final = true,
+            .type = HTTPD_WS_TYPE_TEXT,
+            .payload = (uint8_t *)message->data,
+            .len = message->length,
+        };
+        /*
+         * 当前函数已经由 httpd_queue_work() 安排在 HTTP 服务线程中执行。
+         * httpd_ws_send_data() 会再次向同一线程排队并同步等待，因而会造成
+         * 服务线程等待自己。这里必须使用供 queue_work 场景使用的底层接口。
+         */
+        esp_err_t err = httpd_ws_send_frame_async(
+            message->server, message->client_fd, &frame);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "向配网页面发送实时消息失败：%s", esp_err_to_name(err));
+        } else {
+            ESP_LOGI(TAG, "网页状态已发送，共 %u 字节", (unsigned)message->length);
+        }
+    } else {
+        ESP_LOGW(TAG, "网页实时连接已经失效，无法发送状态");
+    }
+    free(message->data);
+    free(message);
+}
+
 static esp_err_t ws_send_text(const char *data, size_t len)
 {
     if (data == NULL || s_server == NULL || s_client_fd < 0) {
         return ESP_ERR_INVALID_STATE;
     }
-    if (httpd_ws_get_fd_info(s_server, s_client_fd) != HTTPD_WS_CLIENT_WEBSOCKET) {
+    httpd_ws_client_info_t info = httpd_ws_get_fd_info(s_server, s_client_fd);
+    if (info != HTTPD_WS_CLIENT_WEBSOCKET) {
+        ESP_LOGW(TAG, "网页实时连接不可用：连接=%d，类型=%d", s_client_fd, (int)info);
         s_client_fd = -1;
         return ESP_ERR_INVALID_STATE;
     }
 
-    httpd_ws_frame_t frame = {
-        .final = true,
-        .type = HTTPD_WS_TYPE_TEXT,
-        .payload = (uint8_t *)data,
-        .len = len,
-    };
-    return httpd_ws_send_data(s_server, s_client_fd, &frame);
+    ws_async_message_t *message = calloc(1, sizeof(*message));
+    if (message == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+    message->data = malloc(len + 1U);
+    if (message->data == NULL) {
+        free(message);
+        return ESP_ERR_NO_MEM;
+    }
+    memcpy(message->data, data, len);
+    message->data[len] = '\0';
+    message->length = len;
+    message->server = s_server;
+    message->client_fd = s_client_fd;
+    esp_err_t err = httpd_queue_work(s_server, ws_send_work, message);
+    if (err != ESP_OK) {
+        free(message->data);
+        free(message);
+    }
+    ESP_LOGI(TAG, "网页状态已加入发送队列：连接=%d，结果=%s",
+             s_client_fd, esp_err_to_name(err));
+    return err;
 }
 
 static esp_err_t load_html(void)
@@ -166,7 +225,7 @@ static esp_err_t ws_handler(httpd_req_t *req)
     if (frame.len == 0U) {
         return ESP_OK;
     }
-    if (frame.len > WS_MAX_MESSAGE_SIZE) {
+    if (frame.len > SOFTAP_WIFI_WS_MAX_MESSAGE_SIZE) {
         ESP_LOGW(TAG, "WebSocket 消息过长：%u 字节", (unsigned)frame.len);
         return ESP_ERR_INVALID_SIZE;
     }
@@ -178,6 +237,8 @@ static esp_err_t ws_handler(httpd_req_t *req)
     frame.payload = payload;
     err = httpd_ws_recv_frame(req, &frame, frame.len);
     if (err == ESP_OK && frame.type == HTTPD_WS_TYPE_TEXT) {
+        ESP_LOGI(TAG, "收到网页实时请求：连接=%d，长度=%u",
+                 fd, (unsigned)frame.len);
         err = process_ws_message(payload, frame.len);
     }
     free(payload);
@@ -237,6 +298,24 @@ static esp_err_t favicon_handler(httpd_req_t *req)
     return httpd_resp_send(req, NULL, 0);
 }
 
+static esp_err_t captive_redirect_handler(httpd_req_t *req, httpd_err_code_t error)
+{
+    (void)error;
+    char location[PORTAL_URL_SIZE];
+    snprintf(location, sizeof(location), "http://%u.%u.%u.%u/",
+             SOFTAP_WIFI_AP_IP_A, SOFTAP_WIFI_AP_IP_B,
+             SOFTAP_WIFI_AP_IP_C, SOFTAP_WIFI_AP_IP_D);
+    httpd_resp_set_status(req, "302 Found");
+    httpd_resp_set_hdr(req, "Location", location);
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    return httpd_resp_send(req, "正在打开配网页面", HTTPD_RESP_USE_STRLEN);
+}
+
+static esp_err_t captive_probe_handler(httpd_req_t *req)
+{
+    return captive_redirect_handler(req, HTTPD_404_NOT_FOUND);
+}
+
 esp_err_t softap_wifi_http_start(const softap_wifi_http_callbacks_t *callbacks)
 {
     if (callbacks == NULL) {
@@ -254,6 +333,9 @@ esp_err_t softap_wifi_http_start(const softap_wifi_http_callbacks_t *callbacks)
     s_callbacks = *callbacks;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.server_port = SOFTAP_WIFI_HTTP_PORT;
+    config.lru_purge_enable = true;
+    config.max_uri_handlers = 12;
     err = httpd_start(&s_server, &config);
     if (err != ESP_OK) {
         (void)softap_wifi_http_stop();
@@ -281,11 +363,37 @@ esp_err_t softap_wifi_http_start(const softap_wifi_http_callbacks_t *callbacks)
         .handler = ws_handler,
         .is_websocket = true,
     };
+    const char *probe_paths[] = {
+        "/generate_204",
+        "/gen_204",
+        "/hotspot-detect.html",
+        "/connecttest.txt",
+        "/ncsi.txt",
+    };
 
     if ((err = httpd_register_uri_handler(s_server, &root)) != ESP_OK ||
         (err = httpd_register_uri_handler(s_server, &favicon)) != ESP_OK ||
         (err = httpd_register_uri_handler(s_server, &softap_css)) != ESP_OK ||
         (err = httpd_register_uri_handler(s_server, &ws)) != ESP_OK) {
+        (void)softap_wifi_http_stop();
+        return err;
+    }
+    for (size_t i = 0; i < sizeof(probe_paths) / sizeof(probe_paths[0]); ++i) {
+        const httpd_uri_t probe = {
+            .uri = probe_paths[i],
+            .method = HTTP_GET,
+            .handler = captive_probe_handler,
+        };
+        err = httpd_register_uri_handler(s_server, &probe);
+        if (err != ESP_OK) {
+            (void)softap_wifi_http_stop();
+            return err;
+        }
+    }
+
+    err = httpd_register_err_handler(
+        s_server, HTTPD_404_NOT_FOUND, captive_redirect_handler);
+    if (err != ESP_OK) {
         (void)softap_wifi_http_stop();
         return err;
     }
