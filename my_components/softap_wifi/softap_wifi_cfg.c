@@ -462,9 +462,9 @@ esp_err_t softap_wifi_cfg_start(void)
 
     esp_err_t err = softap_wifi_net_init(net_status_changed, NULL);
     if (err != ESP_OK) goto fail;
-    if (xTaskCreate(manager_task, "softap_cfg", SOFTAP_WIFI_MANAGER_TASK_STACK,
+    if (xTaskCreatePinnedToCore(manager_task, "softap_cfg", SOFTAP_WIFI_MANAGER_TASK_STACK,
                     NULL, SOFTAP_WIFI_MANAGER_TASK_PRIORITY,
-                    &s_manager_task) != pdPASS) {
+                    &s_manager_task, SOFTAP_WIFI_MANAGER_TASK_CORE) != pdPASS) {
         err = ESP_ERR_NO_MEM;
         goto fail;
     }

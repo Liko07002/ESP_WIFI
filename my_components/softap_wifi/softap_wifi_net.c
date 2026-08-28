@@ -282,8 +282,8 @@ esp_err_t softap_wifi_net_scan_start(softap_wifi_scan_done_cb_t callback, void *
     if (xSemaphoreTake(s_scan_lock, 0) != pdTRUE) return ESP_ERR_INVALID_STATE;
     s_scan_callback = callback;
     s_scan_callback_ctx = ctx;
-    if (xTaskCreate(scan_task, "softap_scan", SOFTAP_WIFI_SCAN_TASK_STACK, NULL,
-                    SOFTAP_WIFI_SCAN_TASK_PRIORITY, &s_scan_task) != pdPASS) {
+    if (xTaskCreatePinnedToCore(scan_task, "softap_scan", SOFTAP_WIFI_SCAN_TASK_STACK, NULL,
+                    SOFTAP_WIFI_SCAN_TASK_PRIORITY, &s_scan_task, SOFTAP_WIFI_SCAN_TASK_CORE) != pdPASS) {
         s_scan_callback = NULL;
         s_scan_callback_ctx = NULL;
         xSemaphoreGive(s_scan_lock);

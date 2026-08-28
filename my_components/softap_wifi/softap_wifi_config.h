@@ -64,10 +64,16 @@
 /* 管理任务和扫描任务的栈大小（字节）及 FreeRTOS 优先级。 */
 #define SOFTAP_WIFI_MANAGER_TASK_STACK          5120U
 #define SOFTAP_WIFI_MANAGER_TASK_PRIORITY       4U
+#define SOFTAP_WIFI_MANAGER_TASK_CORE           1
+
 #define SOFTAP_WIFI_SCAN_TASK_STACK             4096U
 #define SOFTAP_WIFI_SCAN_TASK_PRIORITY          3U
-#define SOFTAP_WIFI_DNS_TASK_STACK              3072U
+#define SOFTAP_WIFI_SCAN_TASK_CORE              1
+
+#define SOFTAP_WIFI_DNS_TASK_STACK              4096U
 #define SOFTAP_WIFI_DNS_TASK_PRIORITY           3U
+#define SOFTAP_WIFI_DNS_TASK_CORE               1
+
 
 /* 保存 Wi-Fi 凭据的 NVS 命名空间和键名，通常无需修改。 */
 #define SOFTAP_WIFI_NVS_NAMESPACE               "softap_wifi"

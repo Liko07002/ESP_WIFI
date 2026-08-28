@@ -104,8 +104,8 @@ esp_err_t softap_wifi_dns_start(void)
     }
 
     s_running = true;
-    if (xTaskCreate(dns_task, "softap_dns", SOFTAP_WIFI_DNS_TASK_STACK, NULL,
-                    SOFTAP_WIFI_DNS_TASK_PRIORITY, &s_dns_task) != pdPASS) {
+    if (xTaskCreatePinnedToCore(dns_task, "softap_dns", SOFTAP_WIFI_DNS_TASK_STACK, NULL,
+                    SOFTAP_WIFI_DNS_TASK_PRIORITY, &s_dns_task, SOFTAP_WIFI_DNS_TASK_CORE) != pdPASS) {
         s_running = false;
         close(s_dns_socket);
         s_dns_socket = -1;
